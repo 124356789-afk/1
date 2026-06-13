@@ -1,0 +1,53 @@
+workflows:
+  sfera-ios:
+    name: Sfera iOS
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.sfera.messenger
+      vars:
+        XCODE_SCHEME: Sfera
+        XCODE_PROJECT: Sfera.xcodeproj
+      xcode: latest
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: "*"
+          include: true
+
+    scripts:
+      - name: Build iOS app
+        script: |
+          xcodebuild build \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$CM_TEAM_ID" \
+            -destination 'generic/platform=iOS' \
+            | xcpretty || true
+
+      - name: Export IPA
+        script: |
+          xcodebuild -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" -sdk iphoneos \
+            -configuration Release archive -archivePath build/Sfera.xcarchive \
+            DEVELOPMENT_TEAM="$CM_TEAM_ID" CODE_SIGN_STYLE=Automatic
+          xcodebuild -exportArchive -archivePath build/Sfera.xcarchive \
+            -exportPath build/ipa -exportOptionsPlist exportOptions.plist
+
+    artifacts:
+      - build/ipa/*.ipa
+
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: false
+          failure: false
